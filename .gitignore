@@ -1,6 +1,33 @@
-*.exe
-*.pdb
-*.obj
-*.user
+# Build outputs
 bin/
 obj/
+*.obj
+*.pdb
+*.exe
+
+# Visual Studio / C# user files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Test / coverage artifacts
+TestResults/
+*.trx
+coverage/
+
+# VS Code local settings (optional)
+.vscode/*
+
+# JetBrains
+.idea/
+
+# OS noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs / temp
+*.log
+*.tmp
