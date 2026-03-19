@@ -1,3 +1,7 @@
+<p align="center">
+        <img src="ignitedlabs-icon.png" alt="IgnitedLabs" width="120" />
+</p>
+
 # Sierra TPM LED Fix
 
 Drop-in replacement driver for the **Honeycomb Sierra TPM Module** gear indicator LEDs in **Microsoft Flight Simulator 2024**.
@@ -80,7 +84,7 @@ MSFS auto-launches SierraLED.exe via `exe.xml`. It connects to SimConnect using 
 ## Documentation
 
 - [Setup Guide](docs/SETUP.md) — Detailed installation instructions
-- [Technical Report](docs/TECHNICAL_REPORT.md) — Root cause analysis for Honeycomb engineering
+- [Technical Report](docs/TECHNICAL_REPORT.md) — Root cause analysis
 
 ## License
 
