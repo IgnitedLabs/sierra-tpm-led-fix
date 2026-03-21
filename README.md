@@ -48,7 +48,17 @@ This project addresses three observed issues:
 
 ## Quick Start
 
+The complete setup process is demonstrated in validated example scripts. All examples are tested by CI on every commit.
+
+> **Note:** Windows execution policies may block script execution. Run examples with `-ExecutionPolicy Bypass` flag:
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File examples/compile.ps1
+> powershell -ExecutionPolicy Bypass -File examples/register.ps1
+> ```
+
 ### 1. Compile
+
+Run [examples/compile.ps1](examples/compile.ps1):
 
 ```powershell
 $bravoDir = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community\BravoLED"
@@ -56,6 +66,8 @@ C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /targe
 ```
 
 ### 2. Register with MSFS
+
+Run [examples/register.ps1](examples/register.ps1):
 
 ```powershell
 $bravoDir = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community\BravoLED"
