@@ -2,23 +2,30 @@
 
 ## Overview
 
-The official Honeycomb BravoLED.exe driver (v1.03) may not work correctly with the Sierra TPM Module in MSFS 2024. The gear indicator LEDs remain unresponsive because BravoLED.exe uses the wrong HID protocol for the Sierra hardware.
+The official Honeycomb BravoLED.exe driver (v1.03) does not work correctly with the Sierra TPM Module in MSFS 2024. The gear indicator LEDs remain unresponsive because BravoLED.exe uses the wrong HID protocol for the Sierra hardware. Worse, BravoLED's Feature Report writes actively disable the Sierra's LED controller.
 
-This unoficial replacement driver (SierraLED.exe) fixes the issue and integrates with MSFS the same way BravoLED does it when you load a flight.
+This replacement driver fixes all three issues and runs alongside MSFS via a desktop shortcut.
 
 ## Requirements
 
 - Windows 10/11 (64-bit)
-- Honeycomb Sierra TPM Module
+- Honeycomb Sierra TPM Module (USB VID 294B / PID 190D)
 - Microsoft Flight Simulator 2024 (MS Store / Xbox edition)
 - .NET Framework 4.0+ (included with Windows)
 - The official BravoLED community package already installed (provides the folder structure and `exe.xml` registration)
 
 ## Automatic Installation
 
-Clone or download this repository, open PowerShell, navigate to the repo directory, and run:
+Clone or download this repository, open PowerShell, and ensure script execution is allowed:
 
 ```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass -Force
+```
+
+Then navigate to the repo directory and run:
+
+```powershell
+cd sierra-tpm-led-fix
 .\install.ps1
 ```
 
@@ -120,10 +127,10 @@ Run the uninstaller from the repo directory:
 The Sierra may be in a stuck state from a previous BravoLED session. Unplug the Sierra for 30 seconds and plug it back in.
 
 ### LEDs stay on after MSFS closes
-The driver detects MSFS exit via SimConnect timeout and turns LEDs off. If MSFS crashes abruptly, the driver may not get a chance to clean up. Simply unplug and replug the Sierra, close any Sierra/Bravo app running and restart MSFS.
+The driver detects MSFS exit via SimConnect timeout (~5 seconds). If MSFS crashes abruptly, the cleanup may not run. Unplug and replug the Sierra, or restart MSFS.
 
 ### SimConnect not found
 The driver auto-searches for `SimConnect_internal.dll` under common install locations (`C:\XboxGames`, `D:\XboxGames`, etc.). If your MSFS is installed elsewhere, check the `FindSimConnect()` method in `SierraLED.cs` and add your install path.
 
 ### Aircraft with fixed gear
-Aircraft like the Cessna 172 have permanently extended gear. The LEDs will show solid green.
+Aircraft like the Cessna 172 have permanently extended gear. The LEDs will show solid green, which is correct.

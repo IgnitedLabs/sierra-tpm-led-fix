@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using System.Threading;
 
-class SierraLEDDriver
+public class SierraLEDDriver
 {
     [DllImport("hid.dll")] static extern void HidD_GetHidGuid(out Guid g);
     [DllImport("setupapi.dll", CharSet=CharSet.Auto)] static extern IntPtr SetupDiGetClassDevs(ref Guid g, IntPtr e, IntPtr h, uint f);

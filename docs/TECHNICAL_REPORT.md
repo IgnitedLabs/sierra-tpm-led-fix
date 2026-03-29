@@ -70,7 +70,7 @@ Report type: **Output Report** via `HidD_SetOutputReport()`, 63 bytes total.
 
 | Property | Bravo Throttle Quadrant | Sierra TPM |
 |---|---|---|
-| API Function | `HidD_SetFeature` | `HidD_SetOutputReport` |
+| API Function | HidD_SetFeature | HidD_SetOutputReport |
 | Report Size | 64 bytes | 63 bytes |
 | LED Data Byte | byte[1] | byte[2] |
 | Feature Reports | Used for LED control | **Disable LED controller** |
@@ -80,17 +80,11 @@ Report type: **Output Report** via `HidD_SetOutputReport()`, 63 bytes total.
 
 To add Sierra TPM support, BravoLED.exe needs these changes:
 
-1. **Device detection**: At startup, check the connected device PID.
-   - PID 1901 = Bravo Throttle Quadrant → use existing Feature Report protocol
-   - PID 190D = Sierra TPM → use Output Report protocol (see below)
+1. **Device detection**: At startup, check the connected device PID. PID 1901 = Bravo Throttle Quadrant (use existing protocol). PID 190D = Sierra TPM (use Output Report protocol).
 
-2. **For Sierra devices**:
-   - Use `HidD_SetOutputReport()` instead of `HidD_SetFeature()`
-   - Send 63-byte buffers instead of 64-byte buffers
-   - Place LED control bits in byte[2] instead of byte[1]
-   - **Never send Feature Reports** — they disable the LED controller
+2. **For Sierra devices**: Use `HidD_SetOutputReport()` instead of `HidD_SetFeature()`. Send 63-byte buffers instead of 64-byte buffers. Place LED control bits in byte[2] instead of byte[1]. Never send Feature Reports — they disable the LED controller.
 
-3. **Important**: If the device has been in a session where Feature Reports were sent, a device power cycle or PnP reset is required before Output Reports will take effect. Consider adding a `HidD_FlushQueue()` or PnP reset at startup as a recovery mechanism.
+3. **Recovery mechanism**: If the device has been in a session where Feature Reports were sent, a device power cycle or PnP reset is required. Consider adding a `HidD_FlushQueue()` or PnP reset at startup.
 
 ## SimConnect Integration Notes
 
@@ -111,6 +105,8 @@ Note: dwID=2 is the OPEN confirmation message, not QUIT. The `SIMCONNECT_PERIOD_
 ## Methodology
 
 All findings were derived from black-box testing: HID descriptor analysis, PE binary reverse engineering of BravoLED.exe (to identify the dynamic `HidD_SetFeature` loading pattern), USB protocol testing with systematic bit-mapping of all 63 report bytes, and SimConnect raw message capture. No proprietary source code was accessed.
+
+This analysis and the resulting driver were developed through a collaborative reverse-engineering session using **Claude (Anthropic)** as an AI pair-programming assistant. The workflow involved iterative cycles of hypothesis, code generation, hardware testing, and debugging — with the human operator providing real-time hardware feedback and the AI assistant performing protocol analysis, binary inspection, and driver code development.
 
 ## Files
 
