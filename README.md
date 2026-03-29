@@ -24,9 +24,17 @@ This project addresses three observed issues:
 
 ## Quick Start
 
-### 1. Set Execution Policy (one-time)
+The complete setup process is demonstrated in validated example scripts. All examples are tested by CI on every commit.
 
-If you haven't run PowerShell scripts before, open PowerShell and run:
+> **Note:** Windows execution policies may block script execution. Run examples with `-ExecutionPolicy Bypass` flag:
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File examples/compile.ps1
+> powershell -ExecutionPolicy Bypass -File examples/register.ps1
+> ```
+
+### 1. Compile
+
+Run [examples/compile.ps1](examples/compile.ps1):
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass -Force
@@ -35,6 +43,8 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass -Force
 ### 2. Install
 
 Clone this repo, then run the installer from PowerShell:
+
+Run [examples/register.ps1](examples/register.ps1):
 
 ```powershell
 cd sierra-tpm-led-fix
