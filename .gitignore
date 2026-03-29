@@ -1,4 +1,8 @@
-# Build outputs
+*.exe
+*.pdb
+*.obj
+*.user
+*.lnk
 bin/
 obj/
 *.obj

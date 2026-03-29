@@ -48,59 +48,38 @@ This project addresses three observed issues:
 
 ## Quick Start
 
-The complete setup process is demonstrated in validated example scripts. All examples are tested by CI on every commit.
+### 1. Install
 
-> **Note:** Windows execution policies may block script execution. Run examples with `-ExecutionPolicy Bypass` flag:
-> ```powershell
-> powershell -ExecutionPolicy Bypass -File examples/compile.ps1
-> powershell -ExecutionPolicy Bypass -File examples/register.ps1
-> ```
-
-### 1. Compile
-
-Run [examples/compile.ps1](examples/compile.ps1):
+Clone this repo, then run the installer from PowerShell:
 
 ```powershell
-$bravoDir = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community\BravoLED"
-C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:winexe /out:"$bravoDir\SierraLED.exe" SierraLED.cs
+cd sierra-tpm-led-fix
+.\install.ps1
 ```
 
-### 2. Register with MSFS
+This will:
+- Auto-discover your MSFS community folder
+- Copy the driver files
+- Disable BravoLED.exe in `exe.xml` (it breaks Sierra LEDs)
+- Create a **"Sierra LED Driver"** shortcut on your desktop
 
-Run [examples/register.ps1](examples/register.ps1):
+### 2. One-time device reset
 
-```powershell
-$bravoDir = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community\BravoLED"
-$exeXml = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\exe.xml"
+If BravoLED.exe has previously run, unplug the Sierra for 30 seconds and plug it back in.
 
-$xmlContent = @"
-<SimBase.Document Type="SimConnect" version="1,0">
-        <Descr>SimConnect</Descr>
-        <Filename>SimConnect.xml</Filename>
-        <Disabled>False</Disabled>
-        <Launch.Addon>
-                <Name>SierraLED</Name>
-                <Disabled>false</Disabled>
-                <Path>$bravoDir\SierraLED.exe</Path>
-        </Launch.Addon>
-</SimBase.Document>
-"@
+### 3. Fly
 
-Set-Content $exeXml -Value $xmlContent
-```
+1. Start MSFS and load a flight
+2. Double-click **"Sierra LED Driver"** on your desktop
+3. LEDs activate within a few seconds
 
-### 3. One-time device reset
+The driver runs silently in the background and turns LEDs off when MSFS closes.
 
-If BravoLED.exe has previously run on this system, the Sierra's LED controller may be in a stuck state. Perform a one-time reset:
+## Why a Desktop Shortcut?
 
-1. Close MSFS completely
-2. Unplug the Sierra TPM USB cable
-3. Wait 30 seconds
-4. Plug it back in
+MSFS 2024 blocks unsigned executables via Windows Application Control. Since our exe isn't code-signed by Honeycomb, MSFS won't launch it. The desktop shortcut runs PowerShell (a Microsoft-signed binary) which compiles and runs the driver code in memory — bypassing the restriction entirely.
 
-### 4. Fly
-
-Start MSFS, load a flight. LEDs work automatically.
+BravoLED.exe is disabled in `exe.xml` to prevent it from sending Feature Reports that disable the Sierra's LED controller.
 
 ## LED Behavior
 
@@ -113,22 +92,23 @@ Start MSFS, load a flight. LEDs work automatically.
 
 Each gear (left, center, right) is indicated independently.
 
-## How It Works
-
-MSFS auto-launches SierraLED.exe via `exe.xml`. It connects to SimConnect using `SimConnect_internal.dll`, subscribes to gear position and electrical data, and sends HID Output Reports to the Sierra's Collection 02 interface. When MSFS closes, LEDs are turned off and the driver exits.
-
-## Support Scope
-
-- This is a best-effort community project.
-- Issues and pull requests may be limited or curated by maintainers.
-- No SLA, no guaranteed turnaround, and no long-term compatibility commitment is implied.
-
 ## Documentation
 
 - [Setup Guide](docs/SETUP.md) — Detailed installation instructions
-- [Technical Report](docs/TECHNICAL_REPORT.md) — Root cause analysis
+- [Technical Report](docs/TECHNICAL_REPORT.md) — Root cause analysis 
+
+## Requirements
+
+- Windows 10/11 (64-bit)
+- Honeycomb Sierra TPM Module
+- Microsoft Flight Simulator 2024 (MS Store edition)
+- .NET Framework 4.0+ (included with Windows)
+- Official BravoLED community package installed (provides folder structure)
+
+## Disclaimer
+
+This is a community fix, not affiliated with or endorsed by Honeycomb Aeronautical. It is provided for interoperability purposes under fair use. No proprietary code was copied — the driver is written entirely from scratch based on black-box hardware testing. No DLLs were modified.
 
 ## License
 
 MIT
-
