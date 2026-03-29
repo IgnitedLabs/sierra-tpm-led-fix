@@ -1,19 +1,157 @@
-name: CI Validation
+name: CI
 
 on:
-  pull_request:
-    branches: [ "main" ]
   push:
-    branches: [ "**" ]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  validate:
+  build-and-test:
     runs-on: windows-latest
-
+    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    
+    - name: Verify SierraLED.cs class is public
+      shell: powershell
+      run: |
+        $content = Get-Content SierraLED.cs -Raw
+        if ($content -notmatch 'public\s+class\s+SierraLEDDriver') {
+          Write-Host "FAIL: SierraLEDDriver class must be public for PowerShell Add-Type" -ForegroundColor Red
+          exit 1
+        }
+        Write-Host "PASS: Class is public" -ForegroundColor Green
 
-      - name: Run validation checks
-        shell: pwsh
-        run: ./scripts/validate.ps1
+    - name: Verify Main method is public
+      shell: powershell
+      run: |
+        $content = Get-Content SierraLED.cs -Raw
+        if ($content -notmatch 'public\s+static\s+int\s+Main') {
+          Write-Host "FAIL: Main method must be public for PowerShell invocation" -ForegroundColor Red
+          exit 1
+        }
+        Write-Host "PASS: Main is public" -ForegroundColor Green
+
+    - name: Compile with csc.exe
+      shell: powershell
+      run: |
+        $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+        & $csc /nologo /optimize /target:winexe /out:SierraLED.exe SierraLED.cs
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "FAIL: Compilation failed" -ForegroundColor Red
+          exit 1
+        }
+        Write-Host "PASS: Compilation succeeded" -ForegroundColor Green
+
+    - name: Compile in-memory via Add-Type (same as SierraLED.ps1)
+      shell: powershell
+      run: |
+        $csCode = Get-Content SierraLED.cs -Raw
+        try {
+          Add-Type -TypeDefinition $csCode -ReferencedAssemblies System.Runtime.InteropServices
+          $type = [SierraLEDDriver]
+          Write-Host "PASS: Add-Type succeeded, type resolved: $type" -ForegroundColor Green
+        } catch {
+          Write-Host "FAIL: Add-Type failed: $_" -ForegroundColor Red
+          exit 1
+        }
+
+    - name: Verify install.ps1 syntax
+      shell: powershell
+      run: |
+        $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile(
+          "$PWD\install.ps1", [ref]$null, [ref]$errors
+        )
+        if ($errors.Count -gt 0) {
+          Write-Host "FAIL: install.ps1 has syntax errors:" -ForegroundColor Red
+          $errors | ForEach-Object { Write-Host "  $_" }
+          exit 1
+        }
+        Write-Host "PASS: install.ps1 syntax OK" -ForegroundColor Green
+
+    - name: Verify uninstall.ps1 syntax
+      shell: powershell
+      run: |
+        $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile(
+          "$PWD\uninstall.ps1", [ref]$null, [ref]$errors
+        )
+        if ($errors.Count -gt 0) {
+          Write-Host "FAIL: uninstall.ps1 has syntax errors:" -ForegroundColor Red
+          $errors | ForEach-Object { Write-Host "  $_" }
+          exit 1
+        }
+        Write-Host "PASS: uninstall.ps1 syntax OK" -ForegroundColor Green
+
+    - name: Verify SierraLED.ps1 syntax
+      shell: powershell
+      run: |
+        $errors = $null
+        [System.Management.Automation.Language.Parser]::ParseFile(
+          "$PWD\SierraLED.ps1", [ref]$null, [ref]$errors
+        )
+        if ($errors.Count -gt 0) {
+          Write-Host "FAIL: SierraLED.ps1 has syntax errors:" -ForegroundColor Red
+          $errors | ForEach-Object { Write-Host "  $_" }
+          exit 1
+        }
+        Write-Host "PASS: SierraLED.ps1 syntax OK" -ForegroundColor Green
+
+    - name: Verify no hardcoded user paths
+      shell: powershell
+      run: |
+        $files = Get-ChildItem -Recurse -Include *.cs,*.ps1,*.md -Exclude TECHNICAL_REPORT.md | 
+          Select-String -Pattern 'C:\\Users\\[A-Za-z]' -SimpleMatch
+        if ($files) {
+          Write-Host "FAIL: Hardcoded user paths found:" -ForegroundColor Red
+          $files | ForEach-Object { Write-Host "  $($_.Filename):$($_.LineNumber): $($_.Line.Trim())" }
+          exit 1
+        }
+        Write-Host "PASS: No hardcoded user paths" -ForegroundColor Green
+
+    - name: Verify LED byte offset is correct (byte[2] not byte[1])
+      shell: powershell
+      run: |
+        $content = Get-Content SierraLED.cs -Raw
+        # Check SetLEDs writes to report[2]
+        if ($content -notmatch 'report\[2\]\s*=\s*ledByte') {
+          Write-Host "FAIL: LED data must be written to report[2]" -ForegroundColor Red
+          exit 1
+        }
+        # Check LEDsOff writes to report[2]
+        if ($content -notmatch 'report\[2\]\s*=\s*0x00') {
+          Write-Host "FAIL: LEDsOff must clear report[2]" -ForegroundColor Red
+          exit 1
+        }
+        Write-Host "PASS: LED byte offset is correct (byte[2])" -ForegroundColor Green
+
+    - name: Verify HID report uses Output Report (not Feature Report)
+      shell: powershell
+      run: |
+        $content = Get-Content SierraLED.cs -Raw
+        if ($content -match 'HidD_SetFeature') {
+          Write-Host "FAIL: Must not use HidD_SetFeature (breaks Sierra LEDs)" -ForegroundColor Red
+          exit 1
+        }
+        if ($content -notmatch 'HidD_SetOutputReport') {
+          Write-Host "FAIL: Must use HidD_SetOutputReport" -ForegroundColor Red
+          exit 1
+        }
+        Write-Host "PASS: Uses HidD_SetOutputReport (not SetFeature)" -ForegroundColor Green
+
+    - name: Verify report size is 63 bytes (not 64)
+      shell: powershell
+      run: |
+        $content = Get-Content SierraLED.cs -Raw
+        if ($content -match 'new byte\[64\]') {
+          Write-Host "FAIL: Report buffer must be 63 bytes, not 64" -ForegroundColor Red
+          exit 1
+        }
+        $matches63 = [regex]::Matches($content, 'new byte\[63\]')
+        if ($matches63.Count -eq 0) {
+          Write-Host "FAIL: No 63-byte report buffers found" -ForegroundColor Red
+          exit 1
+        }
+        Write-Host "PASS: Report size is 63 bytes ($($matches63.Count) buffers)" -ForegroundColor Green

@@ -14,30 +14,6 @@ This project addresses three observed issues:
 2. **Wrong byte offset** — BravoLED writes LED data to byte[1]; Sierra reads byte[2]
 3. **Feature Reports disable LEDs** — BravoLED's writes actively brick the LED controller until power-cycled
 
-## Disclaimer
-
-- This is an **unofficial** project and is **not affiliated with, endorsed by, or supported by Honeycomb Aeronautical, Microsoft, Asobo Studio, or any related partner**.
-- This software is provided **as-is**, without warranty of any kind.
-- You are responsible for testing on your own system before regular use.
-- The maintainers are **not responsible** for any direct or indirect damage, malfunction, data loss, flight-sim instability, or peripheral behavior caused by installation or use.
-
-## Compatibility and Future Updates
-
-- Compatibility is based on the currently tested software and hardware behavior at the time of development.
-- **No guarantee is provided for future compatibility** with:
-        - Microsoft Flight Simulator updates
-        - Honeycomb firmware or driver updates
-        - changes in BravoLED package behavior
-        - Windows HID/USB stack changes
-- Future vendor updates may break this workaround at any time.
-- If official vendor support later resolves these issues, prefer the official solution.
-
-## Legal and Trademarks
-
-- All product names, logos, and brands are property of their respective owners.
-- "Honeycomb", "Sierra", "Microsoft Flight Simulator", and related marks are used only for descriptive compatibility purposes.
-- This repository distributes only project-authored code and documentation under the license shown below.
-
 ## Requirements
 
 - Windows 10/11 (64-bit)
@@ -61,46 +37,43 @@ The complete setup process is demonstrated in validated example scripts. All exa
 Run [examples/compile.ps1](examples/compile.ps1):
 
 ```powershell
-$bravoDir = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community\BravoLED"
-C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:winexe /out:"$bravoDir\SierraLED.exe" SierraLED.cs
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Bypass -Force
 ```
 
-### 2. Register with MSFS
+### 2. Install
+
+Clone this repo, then run the installer from PowerShell:
 
 Run [examples/register.ps1](examples/register.ps1):
 
 ```powershell
-$bravoDir = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community\BravoLED"
-$exeXml = "$env:LOCALAPPDATA\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\exe.xml"
-
-$xmlContent = @"
-<SimBase.Document Type="SimConnect" version="1,0">
-        <Descr>SimConnect</Descr>
-        <Filename>SimConnect.xml</Filename>
-        <Disabled>False</Disabled>
-        <Launch.Addon>
-                <Name>SierraLED</Name>
-                <Disabled>false</Disabled>
-                <Path>$bravoDir\SierraLED.exe</Path>
-        </Launch.Addon>
-</SimBase.Document>
-"@
-
-Set-Content $exeXml -Value $xmlContent
+cd sierra-tpm-led-fix
+.\install.ps1
 ```
+
+This will:
+- Auto-discover your MSFS community folder
+- Copy the driver files
+- Disable BravoLED.exe in `exe.xml` (it breaks Sierra LEDs)
+- Create a **"Sierra LED Driver"** shortcut on your desktop
 
 ### 3. One-time device reset
 
-If BravoLED.exe has previously run on this system, the Sierra's LED controller may be in a stuck state. Perform a one-time reset:
-
-1. Close MSFS completely
-2. Unplug the Sierra TPM USB cable
-3. Wait 30 seconds
-4. Plug it back in
+If BravoLED.exe has previously run, unplug the Sierra for 30 seconds and plug it back in.
 
 ### 4. Fly
 
-Start MSFS, load a flight. LEDs work automatically.
+1. Start MSFS and load a flight
+2. Double-click **"Sierra LED Driver"** on your desktop
+3. LEDs activate within a few seconds
+
+The driver runs silently in the background and turns LEDs off when MSFS closes.
+
+## Why a Desktop Shortcut?
+
+MSFS 2024 blocks unsigned executables via Windows Application Control. Since our exe isn't code-signed, MSFS won't launch it. The desktop shortcut runs PowerShell (a Microsoft-signed binary) which compiles and runs the driver code in memory — bypassing the restriction entirely.
+
+BravoLED.exe is disabled in `exe.xml` to prevent it from sending Feature Reports that disable the Sierra's LED controller.
 
 ## LED Behavior
 
@@ -113,22 +86,34 @@ Start MSFS, load a flight. LEDs work automatically.
 
 Each gear (left, center, right) is indicated independently.
 
-## How It Works
-
-MSFS auto-launches SierraLED.exe via `exe.xml`. It connects to SimConnect using `SimConnect_internal.dll`, subscribes to gear position and electrical data, and sends HID Output Reports to the Sierra's Collection 02 interface. When MSFS closes, LEDs are turned off and the driver exits.
-
-## Support Scope
-
-- This is a best-effort community project.
-- Issues and pull requests may be limited or curated by maintainers.
-- No SLA, no guaranteed turnaround, and no long-term compatibility commitment is implied.
-
 ## Documentation
 
 - [Setup Guide](docs/SETUP.md) — Detailed installation instructions
 - [Technical Report](docs/TECHNICAL_REPORT.md) — Root cause analysis
 
+## Disclaimer
+
+- This is an **unofficial** project and is **not affiliated with, endorsed by, or supported by Honeycomb Aeronautical, Microsoft, Asobo Studio, or any related partner**.
+- This software is provided **as-is**, without warranty of any kind. You are responsible for testing on your own system before regular use.
+- The maintainers are **not responsible** for any direct or indirect damage, malfunction, data loss, flight-sim instability, or peripheral behavior caused by installation or use.
+- No proprietary code was copied — the driver is written entirely from scratch based on black-box hardware testing. No DLLs were modified.
+
+## Compatibility and Future Updates
+
+- Compatibility is based on tested software and hardware behavior at the time of development.
+- **No guarantee is provided for future compatibility** with MSFS updates, Honeycomb firmware/driver updates, BravoLED package changes, or Windows HID/USB stack changes.
+- If official vendor support later resolves these issues, prefer the official solution.
+
+## Credits
+
+This fix was developed through a collaborative reverse-engineering session using **Claude (Anthropic)** as an AI pair-programming assistant. The process involved HID protocol analysis, PE binary inspection of BravoLED.exe, systematic bit-level hardware testing, and iterative driver development — all conducted via conversation-driven debugging with real hardware feedback.
+
+## Legal and Trademarks
+
+- All product names, logos, and brands are property of their respective owners.
+- "Honeycomb", "Sierra", "Microsoft Flight Simulator", and related marks are used only for descriptive compatibility purposes.
+- This repository distributes only project-authored code and documentation under the license shown below.
+
 ## License
 
 MIT
-

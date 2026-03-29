@@ -2,7 +2,7 @@
 
 ## Summary
 
-The Honeycomb Sierra TPM Module gear indicator LEDs do not function in Microsoft Flight Simulator 2024 when using BravoLED.exe v1.03. Through reverse engineering and systematic hardware testing, we identified three root causes and built a working replacement driver.
+The Honeycomb Sierra TPM Module (VID 294B / PID 190D) gear indicator LEDs do not function in Microsoft Flight Simulator 2024 when using BravoLED.exe v1.03. Through reverse engineering and systematic hardware testing, we identified three root causes and built a working replacement driver.
 
 ## Device Information
 
@@ -41,7 +41,7 @@ Since BravoLED.exe continuously sends Feature Reports while running, it actively
 | 0 | Report ID: always 101 (0x65) |
 | 1 | Unused (must be 0x00) |
 | 2 | LED control bits (see below) |
-| 3–62 | Unused (zeros) |
+| 3-62 | Unused (zeros) |
 
 Report type: **Output Report** via `HidD_SetOutputReport()`, 63 bytes total.
 
@@ -55,7 +55,7 @@ Report type: **Output Report** via `HidD_SetOutputReport()`, 63 bytes total.
 | 3 | 0x08 | Center RED |
 | 4 | 0x10 | Right GREEN |
 | 5 | 0x20 | Right RED |
-| 6–7 | — | Unused |
+| 6-7 | - | Unused |
 
 ### Common Patterns
 
@@ -70,7 +70,7 @@ Report type: **Output Report** via `HidD_SetOutputReport()`, 63 bytes total.
 
 | Property | Bravo Throttle Quadrant | Sierra TPM |
 |---|---|---|
-| API Function | `HidD_SetFeature` | `HidD_SetOutputReport` |
+| API Function | HidD_SetFeature | HidD_SetOutputReport |
 | Report Size | 64 bytes | 63 bytes |
 | LED Data Byte | byte[1] | byte[2] |
 | Feature Reports | Used for LED control | **Disable LED controller** |
@@ -80,17 +80,11 @@ Report type: **Output Report** via `HidD_SetOutputReport()`, 63 bytes total.
 
 To add Sierra TPM support, BravoLED.exe needs these changes:
 
-1. **Device detection**: At startup, check the connected device PID.
-   - PID 1901 = Bravo Throttle Quadrant → use existing Feature Report protocol
-   - PID 190D = Sierra TPM → use Output Report protocol (see below)
+1. **Device detection**: At startup, check the connected device PID. PID 1901 = Bravo Throttle Quadrant (use existing protocol). PID 190D = Sierra TPM (use Output Report protocol).
 
-2. **For Sierra devices**:
-   - Use `HidD_SetOutputReport()` instead of `HidD_SetFeature()`
-   - Send 63-byte buffers instead of 64-byte buffers
-   - Place LED control bits in byte[2] instead of byte[1]
-   - **Never send Feature Reports** — they disable the LED controller
+2. **For Sierra devices**: Use `HidD_SetOutputReport()` instead of `HidD_SetFeature()`. Send 63-byte buffers instead of 64-byte buffers. Place LED control bits in byte[2] instead of byte[1]. Never send Feature Reports — they disable the LED controller.
 
-3. **Important**: If the device has been in a session where Feature Reports were sent, a device power cycle or PnP reset is required before Output Reports will take effect. Consider adding a `HidD_FlushQueue()` or PnP reset at startup as a recovery mechanism.
+3. **Recovery mechanism**: If the device has been in a session where Feature Reports were sent, a device power cycle or PnP reset is required. Consider adding a `HidD_FlushQueue()` or PnP reset at startup.
 
 ## SimConnect Integration Notes
 
@@ -106,11 +100,19 @@ BravoLED.exe does not use the SimConnect SDK DLL. It loads `SimConnect_internal.
 | 56 | FLOAT64 | Third data variable |
 | 64 | FLOAT64 | Fourth data variable |
 
-Note: dwID=2 is the OPEN confirmation message, not QUIT. The first message received after `SimConnect_Open` will always be dwID=2.
-
-The `SIMCONNECT_PERIOD_SIM_FRAME` constant is 3 (not 5 as in some documentation).
+Note: dwID=2 is the OPEN confirmation message, not QUIT. The `SIMCONNECT_PERIOD_SIM_FRAME` constant is 3.
 
 ## Methodology
 
 All findings were derived from black-box testing: HID descriptor analysis, PE binary reverse engineering of BravoLED.exe (to identify the dynamic `HidD_SetFeature` loading pattern), USB protocol testing with systematic bit-mapping of all 63 report bytes, and SimConnect raw message capture. No proprietary source code was accessed.
 
+This analysis and the resulting driver were developed through a collaborative reverse-engineering session using **Claude (Anthropic)** as an AI pair-programming assistant. The workflow involved iterative cycles of hypothesis, code generation, hardware testing, and debugging — with the human operator providing real-time hardware feedback and the AI assistant performing protocol analysis, binary inspection, and driver code development.
+
+## Files
+
+| File | Description |
+|---|---|
+| SierraLED.cs | C# driver source |
+| SierraLED.ps1 | PowerShell launcher (compiles CS in memory, auto-discovers SimConnect) |
+| install.ps1 | Auto-discovery installer |
+| uninstall.ps1 | Restores original BravoLED setup |

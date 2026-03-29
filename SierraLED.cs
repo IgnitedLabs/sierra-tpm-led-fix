@@ -1,9 +1,10 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using System.Threading;
 
-class SierraLEDDriver
+public class SierraLEDDriver
 {
     [DllImport("hid.dll")] static extern void HidD_GetHidGuid(out Guid g);
     [DllImport("setupapi.dll", CharSet=CharSet.Auto)] static extern IntPtr SetupDiGetClassDevs(ref Guid g, IntPtr e, IntPtr h, uint f);
@@ -51,6 +52,35 @@ class SierraLEDDriver
         return null;
     }
 
+    static string FindSimConnect()
+    {
+        // Search common install locations for SimConnect_internal.dll
+        string[] searchRoots = {
+            @"C:\XboxGames",
+            @"D:\XboxGames",
+            @"E:\XboxGames",
+            @"C:\Program Files\WindowsApps",
+            @"D:\Program Files\WindowsApps",
+            @"C:\Games",
+            @"D:\Games"
+        };
+
+        foreach (string root in searchRoots)
+        {
+            if (!Directory.Exists(root)) continue;
+            try
+            {
+                string[] files = Directory.GetFiles(root, "SimConnect_internal.dll", SearchOption.AllDirectories);
+                foreach (string f in files)
+                {
+                    if (f.Contains("Flight Simulator")) return f;
+                }
+            }
+            catch {}
+        }
+        return null;
+    }
+
     static void SetLEDs(byte ledByte)
     {
         if (ledByte != lastLedByte)
@@ -88,9 +118,8 @@ class SierraLEDDriver
         catch {}
     }
 
-    static int Main(string[] args)
+    public static int Main(string[] args)
     {
-        // Register cleanup for all exit scenarios
         AppDomain.CurrentDomain.ProcessExit += (s, e) => LEDsOff();
 
         // Open Sierra HID - retry for up to 30 seconds
@@ -103,8 +132,11 @@ class SierraLEDDriver
         }
         if (hidHandle == null) return 1;
 
-        // Load SimConnect
-        IntPtr scDll = LoadLibraryW(@"C:\XboxGames\Microsoft Flight Simulator 2024\Content\SimConnect_internal.dll");
+        // Find and load SimConnect
+        string scPath = FindSimConnect();
+        if (scPath == null) { hidHandle.Close(); return 1; }
+
+        IntPtr scDll = LoadLibraryW(scPath);
         if (scDll == IntPtr.Zero) { hidHandle.Close(); return 1; }
 
         var scOpen = (DSimConnect_Open)Marshal.GetDelegateForFunctionPointer(GetProcAddress(scDll, "SimConnect_Open"), typeof(DSimConnect_Open));
@@ -161,13 +193,11 @@ class SierraLEDDriver
             }
 
             if (!gotData) noDataCount++;
-            // If no data for ~5 seconds, MSFS is gone
             if (noDataCount > 300) running = false;
 
             Thread.Sleep(16);
         }
 
-        // Clean shutdown
         LEDsOff();
         try { scClose(hSC); } catch {}
         hidHandle.Close();
