@@ -54,8 +54,13 @@ public class SierraLEDDriver
 
     static string FindSimConnect()
     {
-        // Search common install locations for SimConnect_internal.dll
-        string[] searchRoots = {
+        // Honor caller-supplied path (set by SierraLED.ps1 launcher).
+        string envPath = Environment.GetEnvironmentVariable("SIERRA_SIMCONNECT_DLL");
+        if (!string.IsNullOrEmpty(envPath) && File.Exists(envPath)) return envPath;
+
+        // Search common install locations for SimConnect_internal.dll.
+        // Covers Xbox/MS Store layouts and Steam libraries on any drive.
+        System.Collections.Generic.List<string> searchRoots = new System.Collections.Generic.List<string> {
             @"C:\XboxGames",
             @"D:\XboxGames",
             @"E:\XboxGames",
@@ -65,6 +70,35 @@ public class SierraLEDDriver
             @"D:\Games"
         };
 
+        // Steam: enumerate every configured library via libraryfolders.vdf
+        string[] steamRoots = {
+            Environment.GetEnvironmentVariable("ProgramFiles(x86)") + @"\Steam",
+            Environment.GetEnvironmentVariable("ProgramFiles") + @"\Steam"
+        };
+        foreach (string sr in steamRoots)
+        {
+            if (string.IsNullOrEmpty(sr) || !Directory.Exists(sr)) continue;
+            string common = Path.Combine(sr, @"steamapps\common");
+            if (Directory.Exists(common)) searchRoots.Add(common);
+            string vdf = Path.Combine(sr, @"steamapps\libraryfolders.vdf");
+            if (File.Exists(vdf))
+            {
+                try
+                {
+                    string text = File.ReadAllText(vdf);
+                    foreach (System.Text.RegularExpressions.Match m in
+                        System.Text.RegularExpressions.Regex.Matches(text, "\"path\"\\s+\"([^\"]+)\""))
+                    {
+                        string libPath = m.Groups[1].Value.Replace(@"\\", @"\");
+                        string libCommon = Path.Combine(libPath, @"steamapps\common");
+                        if (Directory.Exists(libCommon)) searchRoots.Add(libCommon);
+                    }
+                }
+                catch {}
+            }
+            break;
+        }
+
         foreach (string root in searchRoots)
         {
             if (!Directory.Exists(root)) continue;
@@ -73,7 +107,10 @@ public class SierraLEDDriver
                 string[] files = Directory.GetFiles(root, "SimConnect_internal.dll", SearchOption.AllDirectories);
                 foreach (string f in files)
                 {
-                    if (f.Contains("Flight Simulator")) return f;
+                    // Xbox install dir is 'Microsoft Flight Simulator 2024';
+                    // Steam install dir is 'MSFS2024'. Accept either.
+                    string fl = f.ToLowerInvariant();
+                    if (fl.Contains("flight simulator") || fl.Contains("msfs")) return f;
                 }
             }
             catch {}
