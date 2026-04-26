@@ -1,16 +1,51 @@
 # Sierra TPM LED Fix - Uninstaller
 # Restores the original BravoLED.exe configuration
 
-# Auto-discover MSFS package path
-$msfsPackage = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Microsoft.Limitless*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $msfsPackage) {
-    Write-Host "ERROR: MSFS 2024 package not found." -ForegroundColor Red
+function Resolve-MsfsPaths {
+    # Mirror the installer: only return the Xbox layout when BravoLED is
+    # actually present, otherwise fall through to the Steam/UserCfg.opt path.
+    $msfsPackage = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Microsoft.Limitless*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($msfsPackage) {
+        $xboxBravo = Join-Path $msfsPackage.FullName "LocalCache\Packages\Community\BravoLED"
+        if (Test-Path $xboxBravo) {
+            return [pscustomobject]@{
+                BravoDir = $xboxBravo
+                ExeXml   = Join-Path $msfsPackage.FullName "LocalCache\exe.xml"
+                Source   = "MS Store/Xbox package"
+            }
+        }
+    }
+
+    $userCfgPath = Join-Path $env:APPDATA "Microsoft Flight Simulator 2024\UserCfg.opt"
+    if (-not (Test-Path $userCfgPath)) {
+        return $null
+    }
+
+    $installedPackagesLine = Select-String -Path $userCfgPath -Pattern 'InstalledPackagesPath' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $installedPackagesLine) {
+        return $null
+    }
+
+    $installedPackagesPath = [regex]::Match($installedPackagesLine.Line, 'InstalledPackagesPath\s+"([^"]+)"').Groups[1].Value
+    if ([string]::IsNullOrWhiteSpace($installedPackagesPath)) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        BravoDir = Join-Path $installedPackagesPath "Community\BravoLED"
+        ExeXml   = Join-Path (Split-Path -Parent $userCfgPath) "exe.xml"
+        Source   = "Roaming UserCfg.opt"
+    }
+}
+
+$msfsPaths = Resolve-MsfsPaths
+if (-not $msfsPaths) {
+    Write-Host "ERROR: MSFS 2024 install not found." -ForegroundColor Red
     exit 1
 }
 
-$msfsLocal = Join-Path $msfsPackage.FullName "LocalCache"
-$bravoDir = Join-Path $msfsLocal "Packages\Community\BravoLED"
-$exeXml = Join-Path $msfsLocal "exe.xml"
+$bravoDir = $msfsPaths.BravoDir
+$exeXml = $msfsPaths.ExeXml
 
 # Restore exe.xml
 if (Test-Path "$exeXml.backup") {

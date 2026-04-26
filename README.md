@@ -18,7 +18,7 @@ This project addresses three observed issues:
 
 - Windows 10/11 (64-bit)
 - Honeycomb Sierra TPM Module
-- Microsoft Flight Simulator 2024 (MS Store edition)
+- Microsoft Flight Simulator 2024 (MS Store/Xbox or Steam)
 - .NET Framework 4.0+ (included with Windows)
 - Official BravoLED community package installed (provides folder structure)
 
@@ -52,7 +52,7 @@ cd sierra-tpm-led-fix
 ```
 
 This will:
-- Auto-discover your MSFS community folder
+- Auto-discover your MSFS community folder (MS Store/Xbox or Steam)
 - Copy the driver files
 - Disable BravoLED.exe in `exe.xml` (it breaks Sierra LEDs)
 - Create a **"Sierra LED Driver"** shortcut on your desktop

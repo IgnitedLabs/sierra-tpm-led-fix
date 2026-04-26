@@ -10,7 +10,7 @@ This replacement driver fixes all three issues and runs alongside MSFS via a des
 
 - Windows 10/11 (64-bit)
 - Honeycomb Sierra TPM Module (USB VID 294B / PID 190D)
-- Microsoft Flight Simulator 2024 (MS Store / Xbox edition)
+- Microsoft Flight Simulator 2024 (MS Store/Xbox or Steam)
 - .NET Framework 4.0+ (included with Windows)
 - The official BravoLED community package already installed (provides the folder structure and `exe.xml` registration)
 
@@ -38,10 +38,24 @@ The installer auto-detects your MSFS installation paths and will:
 
 ### Step 1: Find Your MSFS Paths
 
+MS Store/Xbox installs live under `%LOCALAPPDATA%\Packages\Microsoft.Limitless*`. Steam installs use `%APPDATA%\Microsoft Flight Simulator 2024\UserCfg.opt` to point at the Community folder.
+
 ```powershell
 $msfsPackage = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Microsoft.Limitless*" -Directory | Select-Object -First 1
-$bravoDir = Join-Path $msfsPackage.FullName "LocalCache\Packages\Community\BravoLED"
-$exeXml = Join-Path $msfsPackage.FullName "LocalCache\exe.xml"
+$xboxBravo = if ($msfsPackage) { Join-Path $msfsPackage.FullName "LocalCache\Packages\Community\BravoLED" }
+
+if ($xboxBravo -and (Test-Path $xboxBravo)) {
+	$bravoDir = $xboxBravo
+	$exeXml = Join-Path $msfsPackage.FullName "LocalCache\exe.xml"
+} else {
+	$userCfgPath = Join-Path $env:APPDATA "Microsoft Flight Simulator 2024\UserCfg.opt"
+	$installedPackagesPath = [regex]::Match(
+		(Select-String -Path $userCfgPath -Pattern 'InstalledPackagesPath').Line,
+		'InstalledPackagesPath\s+"([^"]+)"'
+	).Groups[1].Value
+	$bravoDir = Join-Path $installedPackagesPath "Community\BravoLED"
+	$exeXml = Join-Path (Split-Path -Parent $userCfgPath) "exe.xml"
+}
 Write-Host "BravoLED dir: $bravoDir"
 Write-Host "exe.xml: $exeXml"
 ```
@@ -130,7 +144,7 @@ The Sierra may be in a stuck state from a previous BravoLED session. Unplug the 
 The driver detects MSFS exit via SimConnect timeout (~5 seconds). If MSFS crashes abruptly, the cleanup may not run. Unplug and replug the Sierra, or restart MSFS.
 
 ### SimConnect not found
-The driver auto-searches for `SimConnect_internal.dll` under common install locations (`C:\XboxGames`, `D:\XboxGames`, etc.). If your MSFS is installed elsewhere, check the `FindSimConnect()` method in `SierraLED.cs` and add your install path.
+The driver searches Xbox install dirs (`C:\XboxGames` etc.) and every Steam library listed in `libraryfolders.vdf`. If your MSFS is installed somewhere unusual, add the path to the search roots in `SierraLED.ps1` and `SierraLED.cs`.
 
 ### Aircraft with fixed gear
 Aircraft like the Cessna 172 have permanently extended gear. The LEDs will show solid green, which is correct.
